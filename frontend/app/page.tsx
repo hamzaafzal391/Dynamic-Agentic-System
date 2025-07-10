@@ -14,6 +14,8 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [processingTrace, setProcessingTrace] = useState<ProcessingTrace | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showLeftPanel, setShowLeftPanel] = useState(true)
+  const [showRightPanel, setShowRightPanel] = useState(true)
 
   // Add welcome message
   useEffect(() => {
@@ -29,37 +31,45 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Gradient Background (replacing 3D particles temporarily) */}
+      {/* Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900" />
       
       {/* Main Content */}
       <div className="relative z-10 flex flex-col h-screen">
         {/* Header */}
-        <Header />
+        <Header 
+          onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
+          onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+          showLeftPanel={showLeftPanel}
+          showRightPanel={showRightPanel}
+        />
         
         {/* Main Layout */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left Panel - KB Sources and Persona Management */}
-          <motion.div
-            initial={{ x: -300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="w-80 bg-black/20 backdrop-blur-xl border-r border-white/10"
-          >
-            <LeftPanel
-              selectedPersona={selectedPersona}
-              onPersonaSelect={setSelectedPersona}
-              datasets={datasets}
-              onDatasetsChange={setDatasets}
-            />
-          </motion.div>
+          {showLeftPanel && (
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-64 lg:w-80 xl:w-96 bg-black/20 backdrop-blur-xl border-r border-white/10 flex-shrink-0"
+            >
+              <LeftPanel
+                selectedPersona={selectedPersona}
+                onPersonaSelect={setSelectedPersona}
+                datasets={datasets}
+                onDatasetsChange={setDatasets}
+              />
+            </motion.div>
+          )}
           
           {/* Center Panel - Chat + Answer + Suggested Queries */}
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex-1 flex flex-col"
+            className="flex-1 flex flex-col min-w-0"
           >
             <ChatPanel
               messages={messages}
@@ -72,17 +82,20 @@ export default function Home() {
           </motion.div>
           
           {/* Right Panel - Metadata and Source */}
-          <motion.div
-            initial={{ x: 300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="w-80 bg-black/20 backdrop-blur-xl border-l border-white/10"
-          >
-            <RightPanel
-              processingTrace={processingTrace}
-              selectedPersona={selectedPersona}
-            />
-          </motion.div>
+          {showRightPanel && (
+            <motion.div
+              initial={{ x: 300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 300, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="w-64 lg:w-80 xl:w-96 bg-black/20 backdrop-blur-xl border-l border-white/10 flex-shrink-0"
+            >
+              <RightPanel
+                processingTrace={processingTrace}
+                selectedPersona={selectedPersona}
+              />
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

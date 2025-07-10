@@ -91,13 +91,14 @@ async def root():
 
 @app.post("/query", response_model=QueryResponse)
 async def process_query(request: QueryRequest):
-    """Process a query through the multi-agent system."""
+    print("[DEBUG] API received request:", request.dict())
     start_time = datetime.now()
     
     try:
         # Validate persona type
         try:
-            persona_type = PersonaType(request.persona_type.lower())
+            persona_type_str = request.persona_type or "general"
+            persona_type = PersonaType(persona_type_str.lower())
         except ValueError:
             persona_type = PersonaType.GENERAL
         
@@ -109,8 +110,7 @@ async def process_query(request: QueryRequest):
         
         # Add processing time
         processing_time = (datetime.now() - start_time).total_seconds()
-        
-        return QueryResponse(
+        response_obj = QueryResponse(
             success=result["success"],
             response=result["response"],
             suggested_queries=result.get("suggested_queries", []),
@@ -120,6 +120,8 @@ async def process_query(request: QueryRequest):
             error=result.get("error"),
             processing_time=f"{processing_time:.2f}s"
         )
+        print("[DEBUG] API SENDING RESPONSE:", response_obj.dict())
+        return response_obj
         
     except Exception as e:
         return QueryResponse(
@@ -138,7 +140,7 @@ async def upload_pdf(file: UploadFile = File(...)):
     """Upload and process a PDF document."""
     try:
         # Validate file type
-        if not file.filename.lower().endswith('.pdf'):
+        if not file.filename or not file.filename.lower().endswith('.pdf'):
             raise HTTPException(status_code=400, detail="Only PDF files are supported")
         
         # Read file content
@@ -180,7 +182,13 @@ async def upload_pdf(file: UploadFile = File(...)):
             "file_type": "pdf"
         }
         
-        doc_id = document_store.add_document(all_text, metadata)
+        doc_result = document_store.add_document(all_text, metadata)
+        print("[DEBUG] add_document result:", doc_result)
+        
+        if not doc_result.get("success"):
+            raise HTTPException(status_code=500, detail=doc_result.get("error", "Failed to add document to vector store"))
+        
+        doc_id = doc_result.get("doc_id")
         
         return UploadResponse(
             success=True,
@@ -260,11 +268,55 @@ async def get_document_stats():
 
 @app.get("/datasets")
 async def get_datasets():
-    """Get available CSV datasets."""
+    """Get available CSV datasets and PDF documents."""
     try:
         from math_ops.data_processor import data_processor
-        result = data_processor.get_available_datasets()
-        return result
+        from ocr.pdf_processor import pdf_processor
+        import os
+        
+        # Get CSV datasets
+        csv_result = data_processor.get_available_datasets()
+        
+        # Get PDF documents
+        pdf_datasets = []
+        if os.path.exists(Config.UPLOAD_DIR):
+            for file in os.listdir(Config.UPLOAD_DIR):
+                if file.lower().endswith('.pdf'):
+                    file_path = os.path.join(Config.UPLOAD_DIR, file)
+                    file_size = os.path.getsize(file_path)
+                    # Try to read metadata JSON
+                    meta_path = file_path + ".meta.json"
+                    original_filename = file.replace('.pdf', '')
+                    if os.path.exists(meta_path):
+                        import json
+                        try:
+                            with open(meta_path, "r", encoding="utf-8") as mf:
+                                meta = json.load(mf)
+                                original_filename = meta.get("original_filename", original_filename)
+                        except Exception:
+                            pass
+                    pdf_datasets.append({
+                        'name': original_filename,
+                        'file_path': file_path,
+                        'file_type': 'pdf',
+                        'file_size': file_size,
+                        'rows': 1,  # PDFs don't have rows like CSVs
+                        'columns': ['content', 'pages', 'metadata']
+                    })
+        
+        # Combine results
+        all_datasets = []
+        if csv_result.get("success"):
+            all_datasets.extend(csv_result["datasets"])
+        all_datasets.extend(pdf_datasets)
+        
+        return {
+            "success": True,
+            "datasets": all_datasets,
+            "count": len(all_datasets),
+            "csv_count": len(csv_result.get("datasets", [])),
+            "pdf_count": len(pdf_datasets)
+        }
     except Exception as e:
         return {
             "success": False,

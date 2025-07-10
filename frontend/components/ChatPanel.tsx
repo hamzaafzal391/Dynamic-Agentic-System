@@ -48,11 +48,15 @@ export function ChatPanel({
       timestamp: new Date()
     }
 
-    onMessagesChange([...messages, userMessage])
+    onMessagesChange((prev: ChatMessage[]) => [...prev, userMessage])
     setInputValue('')
     setIsProcessing(true)
 
     try {
+      console.log('[DEBUG] Frontend: Starting query processing')
+      console.log('[DEBUG] Frontend: Query:', inputValue)
+      console.log('[DEBUG] Frontend: Persona type:', selectedPersona.type)
+
       // Simulate processing trace
       const trace: ProcessingTrace = {
         query: inputValue,
@@ -89,10 +93,15 @@ export function ChatPanel({
         onProcessingTrace({ ...trace })
       }, 2500)
 
+      console.log('[DEBUG] Frontend: Calling processQuery API')
       const response = await processQuery({
         query: inputValue,
         persona_type: selectedPersona.type
       })
+      console.log('[DEBUG] Frontend: Received API response:', response)
+      console.log('[DEBUG] Frontend: Response success:', response.success)
+      console.log('[DEBUG] Frontend: Response content length:', response.response?.length)
+      console.log('[DEBUG] Frontend: Response error:', response.error)
 
       setTimeout(() => {
         trace.steps[3].status = 'completed'
@@ -113,13 +122,20 @@ export function ChatPanel({
           }
         }
 
+        console.log('[DEBUG] Frontend: Creating assistant message:', assistantMessage)
         onMessagesChange((prev: ChatMessage[]) => [...prev, assistantMessage])
         setSuggestedQueries(response.suggested_queries || [])
         setIsProcessing(false)
+        console.log('[DEBUG] Frontend: Query processing completed successfully')
       }, 3500)
 
-    } catch (error) {
-      console.error('Error processing query:', error)
+    } catch (error: any) {
+      console.error('[DEBUG] Frontend: Error processing query:', error)
+      console.error('[DEBUG] Frontend: Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        response: error?.response?.data
+      })
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
