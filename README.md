@@ -12,6 +12,7 @@ A comprehensive multi-agent system for document processing, mathematical computa
 - **Persona System**: Financial, Legal, and General Assistant personas
 - **Suggested Queries**: AI-powered follow-up question generation
 - **FastAPI Backend**: RESTful API with automatic documentation
+- **Next.js Frontend**: Modern React-based user interface
 
 ## Project Structure
 
@@ -23,9 +24,10 @@ dynamic_agentic_system/
 ├── rag/                   # Retrieval-Augmented Generation
 │   ├── __init__.py
 │   └── document_store.py  # Pinecone vector store integration
-├── math/                  # Mathematical computations
+├── math_ops/              # Mathematical computations
 │   ├── __init__.py
 │   ├── computation.py     # Pandas-based calculations
+│   ├── data_processor.py  # CSV data processing
 │   └── sql_query.py       # DuckDB database operations
 ├── ocr/                   # PDF processing and OCR
 │   ├── __init__.py
@@ -37,12 +39,19 @@ dynamic_agentic_system/
 ├── api/                   # FastAPI application
 │   ├── __init__.py
 │   └── main.py           # Main API endpoints
+├── frontend/              # Next.js frontend application
+│   ├── app/              # Next.js app directory
+│   ├── components/       # React components
+│   ├── lib/              # Utility functions
+│   ├── types/            # TypeScript type definitions
+│   └── package.json      # Frontend dependencies
 ├── data/                  # Data storage
 │   ├── docs/             # Uploaded PDF documents
 │   └── stocks/           # Stock data files
 ├── config.py             # Configuration and environment variables
 ├── requirements.txt      # Python dependencies
 ├── env_example.txt       # Environment variables template
+├── run.py               # Main server entry point
 └── README.md            # This file
 ```
 
@@ -268,4 +277,28 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-For support and questions, please open an issue on the GitHub repository. 
+For support and questions, please open an issue on the GitHub repository.
+
+## Frontend Setup
+
+### Starting the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend will start at `http://localhost:3000`
+
+### Frontend Features
+
+- **Modern UI**: Built with Next.js 14, Tailwind CSS, and ShadCN components
+- **Real-time Chat**: Interactive chat interface with persona selection
+- **File Upload**: Drag-and-drop PDF upload functionality
+- **Responsive Design**: Works on desktop and mobile devices
+- **Dark Mode**: Toggle between light and dark themes
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
