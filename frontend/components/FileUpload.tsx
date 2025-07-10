@@ -70,23 +70,23 @@ export function FileUpload({ onFileUpload, acceptedTypes = ['application/pdf', '
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <Card className={`transition-all duration-200 ${isDragActive ? 'ring-2 ring-primary scale-105' : ''}`}>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+            className={`border-2 border-dashed rounded-lg p-4 sm:p-8 text-center cursor-pointer transition-colors ${
               isDragActive 
                 ? 'border-primary bg-primary/5' 
                 : 'border-gray-300 hover:border-primary/50'
             }`}
           >
             <input {...getInputProps()} />
-            <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-lg font-medium mb-2">
+            <Upload className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mb-3 sm:mb-4" />
+            <p className="text-base sm:text-lg font-medium mb-2">
               {isDragActive ? 'Drop files here' : 'Drag & drop files here'}
             </p>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
               or click to select files
             </p>
             <div className="text-xs text-gray-400 space-y-1">
@@ -99,48 +99,51 @@ export function FileUpload({ onFileUpload, acceptedTypes = ['application/pdf', '
 
       {uploads.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium">Uploads</h3>
-          {uploads.map((upload) => (
-            <div
-              key={upload.id}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-            >
-              <div className="flex items-center space-x-3">
-                <span className="text-lg">{getFileIcon(upload.type)}</span>
-                <div>
-                  <p className="text-sm font-medium">{upload.name}</p>
-                  <p className="text-xs text-gray-500">{formatFileSize(upload.size)}</p>
+          <h3 className="text-sm font-medium text-white">Uploads</h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+            {uploads.map((upload) => (
+              <div
+                key={upload.id}
+                className="flex items-center justify-between p-2 sm:p-3 bg-gray-50/10 rounded-lg border border-gray-200/20"
+              >
+                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+                  <span className="text-base sm:text-lg flex-shrink-0">{getFileIcon(upload.type)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-medium text-white truncate">{upload.name}</p>
+                    <p className="text-xs text-gray-400">{formatFileSize(upload.size)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  {upload.status === 'uploading' && (
+                    <div className="w-12 sm:w-16 bg-gray-200/20 rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${upload.progress}%` }}
+                      />
+                    </div>
+                  )}
+                  
+                  {upload.status === 'completed' && (
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
+                  )}
+                  
+                  {upload.status === 'error' && (
+                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                  )}
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeUpload(upload.id)}
+                    className="p-1 sm:p-2"
+                  >
+                    <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
                 </div>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                {upload.status === 'uploading' && (
-                  <div className="w-16 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-primary h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${upload.progress}%` }}
-                    />
-                  </div>
-                )}
-                
-                {upload.status === 'completed' && (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                )}
-                
-                {upload.status === 'error' && (
-                  <AlertCircle className="h-5 w-5 text-red-500" />
-                )}
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeUpload(upload.id)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>

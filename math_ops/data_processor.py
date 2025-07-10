@@ -61,34 +61,51 @@ class DataProcessor:
             print(f"Created sample data for {symbol}: {file_path}")
     
     def get_available_datasets(self) -> Dict[str, Any]:
-        """Get list of available CSV datasets."""
+        """Get list of available datasets."""
         try:
             datasets = []
-            for file in os.listdir(self.stock_data_dir):
-                if file.endswith('.csv'):
-                    file_path = os.path.join(self.stock_data_dir, file)
-                    df = pd.read_csv(file_path)
-                    # Convert numpy dtypes to strings for JSON serialization
-                    data_types = {}
-                    for col, dtype in df.dtypes.to_dict().items():
-                        data_types[col] = str(dtype)
-                    
-                    datasets.append({
-                        'name': file.replace('.csv', ''),
-                        'file_path': file_path,
-                        'rows': len(df),
-                        'columns': list(df.columns),
-                        'data_types': data_types
-                    })
+            
+            # List files in the stock data directory
+            if os.path.exists(self.stock_data_dir):
+                for file in os.listdir(self.stock_data_dir):
+                    if file.endswith('.csv'):
+                        dataset_name = file.replace('.csv', '')
+                        file_path = os.path.join(self.stock_data_dir, file)
+                        
+                        # Read the CSV to get actual structure
+                        try:
+                            df = pd.read_csv(file_path)
+                            datasets.append({
+                                "name": dataset_name,
+                                "type": "stock_data",
+                                "file": file,
+                                "file_path": file_path,
+                                "rows": len(df),
+                                "columns": list(df.columns),
+                                "file_type": "csv"
+                            })
+                        except Exception as e:
+                            # Fallback if CSV can't be read
+                            datasets.append({
+                                "name": dataset_name,
+                                "type": "stock_data",
+                                "file": file,
+                                "file_path": file_path,
+                                "rows": 0,
+                                "columns": [],
+                                "file_type": "csv"
+                            })
             
             return {
                 "success": True,
-                "datasets": datasets,
-                "count": len(datasets)
+                "datasets": datasets
             }
             
         except Exception as e:
-            return {"error": f"Failed to get datasets: {str(e)}"}
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
     def load_dataset(self, dataset_name: str) -> Optional[pd.DataFrame]:
         """Load a specific dataset by name."""
@@ -105,33 +122,36 @@ class DataProcessor:
             print(f"Failed to load dataset {dataset_name}: {e}")
             return None
     
-    def query_stock_data(self, symbol: str, start_date: Optional[str] = None, 
-                        end_date: Optional[str] = None) -> Dict[str, Any]:
-        """Query stock data for a specific symbol and date range."""
+    def query_stock_data(self, symbol: str) -> Dict[str, Any]:
+        """Query stock data for a specific symbol."""
         try:
-            df = self.load_dataset(symbol)
-            if df is None:
-                return {"error": f"Dataset not found: {symbol}"}
+            # Check if dataset exists
+            file_path = os.path.join(self.stock_data_dir, f"{symbol}.csv")
+            if not os.path.exists(file_path):
+                return {
+                    "success": False,
+                    "error": f"Dataset not found for symbol: {symbol}"
+                }
             
-            # Filter by date range if provided
-            if start_date:
-                df = df[df['date'] >= pd.to_datetime(start_date)]
-            if end_date:
-                df = df[df['date'] <= pd.to_datetime(end_date)]
+            # Load dataset
+            df = pd.read_csv(file_path)
+            
+            # Convert to list of dictionaries
+            data = df.to_dict('records')
             
             return {
                 "success": True,
+                "data": data,
                 "symbol": symbol,
-                "data": df.to_dict('records'),
-                "rows": len(df),
-                "date_range": {
-                    "start": df['date'].min().strftime('%Y-%m-%d') if len(df) > 0 else None,
-                    "end": df['date'].max().strftime('%Y-%m-%d') if len(df) > 0 else None
-                }
+                "rows": len(data)
             }
             
         except Exception as e:
-            return {"error": f"Failed to query stock data: {str(e)}"}
+            print(f"Failed to query stock data for {symbol}: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
     def calculate_moving_average(self, symbol: str, window: int = 20, 
                                start_date: Optional[str] = None, 
@@ -166,6 +186,7 @@ class DataProcessor:
             }
             
         except Exception as e:
+            print(f"Failed to calculate moving average for {symbol}: {e}")
             return {"error": f"Failed to calculate moving average: {str(e)}"}
     
     def get_stock_statistics(self, symbol: str) -> Dict[str, Any]:
@@ -219,6 +240,7 @@ class DataProcessor:
             return {"success": True, "statistics": stats}
             
         except Exception as e:
+            print(f"Failed to get statistics for {symbol}: {e}")
             return {"error": f"Failed to get statistics: {str(e)}"}
     
     def search_stocks(self, query: str) -> Dict[str, Any]:
@@ -244,6 +266,7 @@ class DataProcessor:
             }
             
         except Exception as e:
+            print(f"Failed to search stocks: {e}")
             return {"error": f"Failed to search stocks: {str(e)}"}
 
 # Global data processor instance

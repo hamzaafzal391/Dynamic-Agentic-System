@@ -247,7 +247,7 @@ class PDFProcessor:
             return {"error": f"Failed to extract PDF metadata: {str(e)}"}
     
     def save_uploaded_pdf(self, file_content: bytes, filename: str) -> Dict[str, Any]:
-        """Save uploaded PDF file to the upload directory."""
+        """Save uploaded PDF file to the upload directory and store metadata."""
         try:
             # Create upload directory if it doesn't exist
             os.makedirs(self.upload_dir, exist_ok=True)
@@ -264,6 +264,20 @@ class PDFProcessor:
             
             # Get file metadata
             file_size = len(file_content)
+            upload_time = datetime.now().isoformat()
+            
+            # Save metadata JSON
+            meta = {
+                "original_filename": filename,
+                "saved_filename": unique_filename,
+                "file_path": file_path,
+                "file_size": file_size,
+                "upload_time": upload_time
+            }
+            meta_path = file_path + ".meta.json"
+            import json
+            with open(meta_path, "w", encoding="utf-8") as mf:
+                json.dump(meta, mf)
             
             return {
                 "success": True,
@@ -271,9 +285,8 @@ class PDFProcessor:
                 "saved_filename": unique_filename,
                 "file_path": file_path,
                 "file_size": file_size,
-                "upload_time": datetime.now().isoformat()
+                "upload_time": upload_time
             }
-            
         except Exception as e:
             return {"error": f"Failed to save uploaded PDF: {str(e)}"}
 

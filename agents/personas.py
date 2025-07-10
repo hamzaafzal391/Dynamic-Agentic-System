@@ -18,26 +18,30 @@ class Persona:
         self.openai_client = service_manager.get_openai_client()
     
     def get_response(self, query: str, context: str = "") -> str:
-        """Get response from the persona."""
-        messages: List[ChatCompletionMessageParam] = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": f"Context: {context}\n\nQuery: {query}"}
-        ]
+        """Generate a response using the persona's characteristics."""
+        if not self.openai_client:
+            return "Sorry, I'm not available right now due to configuration issues."
         
         try:
-            if self.openai_client is None:
-                return "Error: OpenAI client not initialized"
-                
+            # Prepare messages
+            messages = [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": f"Context: {context}\n\nQuery: {query}"}
+            ]
+            
+            # Call OpenAI API
             response = self.openai_client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-3.5-turbo",
                 messages=messages,
                 max_tokens=1000,
                 temperature=0.7
             )
+            
             content = response.choices[0].message.content
-            return content if content else "No response generated"
+            return content if content else "I'm sorry, I couldn't generate a response."
+            
         except Exception as e:
-            return f"Error generating response: {e}"
+            return f"Sorry, I encountered an error: {str(e)}"
 
 class FinancialPersona(Persona):
     """Financial advisor persona specialized in financial analysis and advice."""
@@ -126,9 +130,13 @@ class PersonaManager:
         ]
     
     def route_query(self, query: str, persona_type: PersonaType, context: str = "") -> str:
-        """Route a query to the appropriate persona."""
-        persona = self.get_persona(persona_type)
-        return persona.get_response(query, context)
+        """Route a query to the appropriate persona and return the response."""
+        # Get the appropriate persona
+        persona = self.personas.get(persona_type, self.personas[PersonaType.GENERAL])
+        
+        # Generate response using the persona
+        response = persona.get_response(query, context)
+        return response
 
 # Global persona manager instance
 persona_manager = PersonaManager() 

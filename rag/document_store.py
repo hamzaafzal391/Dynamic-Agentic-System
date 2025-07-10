@@ -1,5 +1,6 @@
 import os
 import hashlib
+import uuid
 from typing import List, Dict, Any, Optional
 try:
     from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -31,59 +32,67 @@ class DocumentStore:
         else:
             self.text_splitter = None
     
-    def add_document(self, content: str, metadata: Dict[str, Any], doc_id: Optional[str] = None) -> Dict[str, Any]:
+    def _check_dependencies(self) -> bool:
+        """Check if all required dependencies are initialized."""
+        return self.text_splitter is not None and self.embeddings is not None and self.pinecone_index is not None
+    
+    def _split_text(self, content: str) -> List[str]:
+        """Split text into chunks using the text splitter."""
+        if self.text_splitter:
+            return self.text_splitter.split_text(content)
+        else:
+            # Fallback: simple split by sentences
+            return [content]
+    
+    def add_document(self, content: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Add a document to the vector store."""
+        if not self._check_dependencies():
+            return {"success": False, "error": "Required dependencies not initialized"}
+        
         try:
-            if not self.text_splitter or not self.embeddings or not self.pinecone_index:
-                return {"error": "Required dependencies not initialized"}
-                
-            if not doc_id:
-                doc_id = hashlib.md5(content.encode()).hexdigest()
+            # Generate document ID
+            doc_id = str(uuid.uuid4())
+            if metadata is None:
+                metadata = {}
+            metadata["doc_id"] = doc_id
             
-            # Split text into chunks
-            chunks = self.text_splitter.split_text(content)
+            # Split content into chunks
+            chunks = self._split_text(content)
             
             # Generate embeddings for chunks
-            embeddings_list = self.embeddings.embed_documents(chunks)
-            
-            # Prepare vectors for Pinecone
             vectors = []
-            for i, (chunk, embedding) in enumerate(zip(chunks, embeddings_list)):
-                vector_id = f"{doc_id}_{i}"
-                vector_data = {
+            for i, chunk in enumerate(chunks):
+                embedding = self.embeddings.embed_query(chunk)
+                vector_id = f"{doc_id}_chunk_{i}"
+                vectors.append({
                     "id": vector_id,
                     "values": embedding,
-                    "metadata": {
-                        **metadata,
-                        "chunk_index": i,
-                        "doc_id": doc_id,
-                        "content": chunk,
-                        "chunk_size": len(chunk)
-                    }
-                }
-                vectors.append(vector_data)
+                    "metadata": {**metadata, "chunk_index": i, "content": chunk}
+                })
             
             # Upsert to Pinecone
             self.pinecone_index.upsert(vectors=vectors)
+            
             return {
                 "success": True,
                 "doc_id": doc_id,
-                "chunks_count": len(chunks),
-                "content_length": len(content)
+                "chunks": len(chunks),
+                "vectors": len(vectors)
             }
+            
         except Exception as e:
-            return {"error": f"Failed to add document to vector store: {e}"}
+            return {"success": False, "error": str(e)}
     
     def search_documents(self, query: str, top_k: int = 5, filter_metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Search for relevant documents using vector similarity."""
+        """Search for documents using vector similarity."""
+        if not self._check_dependencies():
+            return {"success": False, "error": "Required dependencies not initialized"}
+        
         try:
-            if not self.embeddings or not self.pinecone_index:
-                return {"error": "Required dependencies not initialized"}
-                
             # Generate query embedding
             query_embedding = self.embeddings.embed_query(query)
             
-            # Search in Pinecone
+            # Prepare search parameters
             search_kwargs = {
                 "vector": query_embedding,
                 "top_k": top_k,
@@ -93,29 +102,31 @@ class DocumentStore:
             if filter_metadata:
                 search_kwargs["filter"] = filter_metadata
             
+            # Search Pinecone
             results = self.pinecone_index.query(**search_kwargs)
             
             # Process results
             documents = []
             if hasattr(results, 'matches'):
-                for match in results.matches:
-                    doc = {
-                        "id": match.id,
-                        "score": match.score,
-                        "content": match.metadata.get("content", ""),
-                        "metadata": {k: v for k, v in match.metadata.items() if k != "content"}
-                    }
-                    documents.append(doc)
+                for i, match in enumerate(results.matches):
+                    if match.metadata and "content" in match.metadata:
+                        doc = {
+                            "id": match.id,
+                            "content": match.metadata["content"],
+                            "score": match.score,
+                            "metadata": {k: v for k, v in match.metadata.items() if k != "content"}
+                        }
+                        documents.append(doc)
             
             return {
                 "success": True,
-                "query": query,
                 "documents": documents,
-                "count": len(documents)
+                "query": query,
+                "top_k": top_k
             }
             
         except Exception as e:
-            return {"error": f"Failed to search documents: {e}"}
+            return {"success": False, "error": str(e)}
     
     def get_document_chunks(self, doc_id: str) -> List[Dict[str, Any]]:
         """Get all chunks for a specific document."""

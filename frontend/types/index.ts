@@ -12,6 +12,8 @@ export interface Dataset {
   file_path: string
   rows: number
   columns: string[]
+  file_type?: string // Add this line for PDF/CSV distinction
+  file_size?: number
   data_types: Record<string, string>
 }
 
